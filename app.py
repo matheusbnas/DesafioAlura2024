@@ -4,7 +4,7 @@ from PIL import Image
 import os
 
 # Defina sua API key do Google Generative AI aqui
-genai.configure(api_key='AIzaSyCXfTt4VVgwcxq9nvAsIO7x5yNsn5BtDjE')
+genai.configure(api_key='chave_api')
 
 # Dicionário dos carros e suas descrições por ano
 cars = {
