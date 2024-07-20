@@ -1,100 +1,163 @@
 import streamlit as st
 import google.generativeai as genai
-from PIL import Image
+import settings
+import dict_cars
 import os
+from PIL import Image
 
-# Defina sua API key do Google Generative AI aqui
-genai.configure(api_key='chave_api')
+# Configure sua API key do Google Generative AI
+API_KEY = 'AIzaSyCXfTt4VVgwcxq9nvAsIO7x5yNsn5BtDjE'  # Substitua pela sua API KEY
+genai.configure(api_key=API_KEY)
 
-# Dicionário dos carros e suas descrições por ano
-cars = {
-    "1983": {"model": "Toleman TG183B",
-             "description": "Projetado por Rory Byrne para a temporada 1983, este foi o carro que marcou a estreia de Ayrton Senna na Fórmula 1, em 1984. Foram quatro provas com o modelo, que permitiu a Senna os primeiros pontos na categoria, com dois sextos lugares nos GPs da África do Sul e da Bélgica.",
-             "titles": 0,
-             "wins": 0},
-    "1984": {"model": "Toleman TG184",
-             "description": "Em sua temporada de estreia na F1, Senna pilotou o Toleman TG184, conquistando um surpreendente segundo lugar no GP de Mônaco, sob chuva torrencial. Apesar do carro não ser dos mais competitivos, Senna demonstrou seu talento com atuações memoráveis.",
-             "titles": 0,
-             "wins": 0},
-    "1985": {"model": "Lotus 97T",
-             "description": "No comando do Lotus 97T, Senna conquistou sua primeira vitória na F1, no GP de Portugal, também sob forte chuva. Obteve outras seis poles positions e terminou o campeonato em quarto lugar, consolidando-se como um dos grandes nomes da categoria.",
-             "titles": 0,
-             "wins": 1},
-    "1986": {"model": "Lotus 98T",
-             "description": "Com o 98T, também projetado por Gérard Ducarouge e Martin Ogilvie, Senna conquistou duas vitórias, oito poles e oito pódios, terminando o ano em quarto lugar no Mundial de Pilotos. Sua pilotagem agressiva e precisa o consagrou como o 'Rei de Mônaco' após uma vitória dominante no principado.",
-             "titles": 0,
-             "wins": 2},
-    "1987": {"model": "Lotus 99T",
-             "description": "Foi com a última Lotus que pilotou, a 99T, que Senna conquistou a primeira vitória no GP de Mônaco. Assim como os modelos anteriores, foi projetada por Gérard Ducarouge e Martin Ogilvie. Naquele ano, Senna terminou o campeonato em terceiro, com a vitória em Mônaco e outra em Detroit, além de uma pole, três voltas mais rápidas e oito pódios.",
-             "titles": 0,
-             "wins": 2},
-    "1988": {"model": "McLaren MP4-4",
-             "description": "Senna juntou-se à McLaren em 1988, formando uma dupla imbatível com Alain Prost. A bordo do MP4-4, considerado um dos carros mais dominantes da história da F1, Senna conquistou seu primeiro título mundial com oito vitórias e treze poles positions em dezesseis corridas. A rivalidade com Prost marcou a temporada.",
-             "titles": 1,
-             "wins": 8},
-    "1989": {"model": "McLaren MP4-5",
-             "description": "A rivalidade com Prost se intensificou em 1989. Pilotando o MP4-5, Senna venceu seis corridas e conquistou o vice-campeonato após uma polêmica colisão com Prost no GP do Japão. O título foi decidido em favor de Prost na última corrida.",
-             "titles": 0,
-             "wins": 6},
-    "1990": {"model": "McLaren MP4-5B",
-             "description": "Senna conquistou seu segundo título mundial em 1990, pilotando o MP4-5B, uma evolução do carro do ano anterior. Venceu seis corridas e protagonizou duelos emocionantes com Prost, que havia se transferido para a Ferrari. A colisão com Prost na primeira curva do GP do Japão selou o bicampeonato de Senna.",
-             "titles": 1,
-             "wins": 6},
-    "1991": {"model": "McLaren MP4-6",
-             "description": "Com o MP4-6, Senna conquistou seu terceiro e último título mundial. Dominou a temporada com sete vitórias e oito poles positions. A superioridade do carro e o talento de Senna o levaram a um tricampeonato incontestável.",
-             "titles": 1,
-             "wins": 7},
-    "1992": {"model": "McLaren MP4-7A",
-             "description": "A temporada de 1992 marcou o início do domínio da Williams na F1. Senna, com o MP4-7A, lutou bravamente contra o forte carro de Nigel Mansell, mas terminou o campeonato em quarto lugar com três vitórias e duas poles positions. Apesar das dificuldades, Senna demonstrou sua garra e habilidade em diversas corridas memoráveis.",
-             "titles": 0,
-             "wins": 3},
-    "1993": {"model": "McLaren MP4-8",
-             "description": "Senna permaneceu na McLaren em 1993, pilotando o MP4-8. A Williams continuava dominante, mas Senna conquistou cinco vitórias espetaculares, incluindo uma atuação memorável sob chuva torrencial em Donington Park. Terminou o campeonato em segundo lugar, atrás de Alain Prost, que havia retornado à F1 pela Williams.",
-             "titles": 0,
-             "wins": 5},
-    "1994": {"model": "Williams FW16",
-             "description": "Senna assinou com a Williams em 1994, buscando um novo desafio e a chance de lutar pelo título novamente. A temporada começou de forma difícil, com o FW16 se mostrando um carro instável e difícil de pilotar. Senna conquistou três poles positions, mas não venceu nenhuma corrida. Infelizmente, sua trajetória foi interrompida por um trágico acidente no GP de San Marino, em Ímola, que tirou sua vida.",
-             "titles": 0,
-             "wins": 0}
-}
+# Carregue o dicionário de carros
+cars = dict_cars.cars
+
+def generate_response(conversation, message):
+    """Gera uma resposta do chatbot usando o Google Gemini."""
+
+    generation_config = {
+        "temperature": 0.7,
+        "top_p": 1,
+        "top_k": 0,
+        "max_output_tokens": 256,
+    }
+    model = genai.GenerativeModel(
+        model_name="gemini-1.0-pro",
+        generation_config=generation_config,
+        safety_settings=settings.safety_settings
+    )
+
+    conversation = [
+    {"role": "system", "content": "Você é um chatbot que fornece informações sobre Ayrton Senna."},
+    ] 
+    exemplos_senna = [
+    {
+        "role": "user", 
+        "content": "Em que ano Ayrton Senna começou na Fórmula 1?"
+    },
+    {
+        "role": "assistant", 
+        "content": "Ayrton Senna estreou na Fórmula 1 em 1984, pilotando para a equipe Toleman."
+    },
+    {
+        "role": "user", 
+        "content": "Quantos títulos mundiais Ayrton Senna ganhou?"
+    },
+    {
+        "role": "assistant", 
+        "content": "Ayrton Senna conquistou três campeonatos mundiais de Fórmula 1, em 1988, 1990 e 1991."
+    },
+    {
+        "role": "user", 
+        "content": "Qual era o carro de Senna em 1990?"
+    },
+    {
+        "role": "assistant", 
+        "content": "Em 1990, Ayrton Senna pilotou o McLaren MP4/5B, um carro icônico que o ajudou a conquistar seu segundo título mundial."
+    },
+    {
+        "role": "user", 
+        "content": "Me fale sobre a vitória de Senna em Mônaco em 1987."
+    },
+    {
+        "role": "assistant", 
+        "content": "A vitória de Senna em Mônaco em 1987 foi dominante. Pilotando o Lotus 99T, ele liderou a corrida de ponta a ponta, demonstrando grande habilidade em um circuito desafiador. Essa foi sua primeira vitória no famoso GP de Mônaco." 
+    }
+]
+    conversation.append({"role": "user", "content": message})
+
+    # Cria o prompt como uma string
+    prompt = ''.join([f"{message['role']}: {message['content']}\n" for message in conversation])
+
+    # Passa o prompt dentro de uma lista para 'contents'
+    response = model.generate_content(
+        contents=[prompt] 
+    )
+
+    conversation.append({"role": "assistant", "content": response.text}) # Acessa o texto da resposta
+    return conversation, response.text # Retorna o texto da resposta
+
 
 # Caminho para o diretório das imagens 
 image_dir = '/home/matheus/repos_github/projetos_matheus/DesafioAlura2024/images'
 
+def get_senna_info(year):
+    """Retorna informações sobre Ayrton Senna, seu carro e a imagem 
+       correspondente ao ano.
+    """
+
+    if year in cars:
+        car_info = cars[year]
+        model = car_info["model"]
+        description = car_info["description"]
+        titles = car_info["titles"]
+        wins = car_info["wins"]
+        
+        # Monta o nome do arquivo de imagem
+        image_file = f"{year}_{model}.jpg"
+        image_path = os.path.join(dict_cars.image_dir, image_file)
+
+        # Verifica se a imagem existe
+        if os.path.isfile(image_path):
+            image = Image.open(image_path)
+            st.image(image, caption=f"{year} - {model}", use_column_width=True)
+        else:
+            st.write(f"Imagem para o {model} de {year} não encontrada.")
+
+        return f"Em {year}, Ayrton Senna pilotou o {model}. {description} Ele conquistou {titles} título mundial e {wins} vitórias nesse ano."
+
+    else:
+        return "Informações sobre esse ano não estão disponíveis."
+
 def main():
-    st.title('Ayrton Senna: Uma Lenda nas Pistas')
+    st.set_page_config("Ayrton Senna: Uma Lenda", layout="wide")
+    st.title("Ayrton Senna: Uma Lenda nas Pistas")
 
     # Lista os anos disponíveis
     available_years = list(cars.keys())
     available_years.sort()
 
-    # Seleção do ano pelo usuário
-    selected_year = st.selectbox('Selecione o ano:', available_years)
+    # Inicializa a conversa com uma mensagem de boas-vindas
+    conversation = [
+        {"role": "system", "content": "Você é um chatbot que fornece informações sobre Ayrton Senna."}
+    ]
 
-    # Obtém informações do carro do ano selecionado
-    car_info = cars[selected_year]
-    model = car_info["model"]
-    description = car_info["description"]
-    titles = car_info["titles"]
-    wins = car_info["wins"]
+    # Barra lateral com informações sobre o chatbot
+    with st.sidebar:
+        #st.image("images/carro.png")  # Substitua pela imagem desejada
+        st.markdown(
+            """
+            ## Bem vindo ao *Ayrton Senna: Uma Lenda*.
+            ## Converse com nosso chatbot e conheça a trajetória do piloto brasileiro e seus carros.
+            ------------------------------------------
+            ## Como usar o chatbot:
+            * Digite suas perguntas sobre Ayrton Senna na caixa de texto abaixo.
+            * O chatbot fornecerá informações sobre a carreira de Senna, seus carros, vitórias e títulos.
+            """
+        )
 
-    # Monta o nome do arquivo de imagem
-    image_file = f"{selected_year}_{model}.jpg"
-    image_path = os.path.join(image_dir, image_file)
+    # Exibe o histórico da conversa
+    for message in conversation:
+        if message["role"] == "user":
+            st.write("Você:", message["content"])
+        else:
+            st.write("Chatbot:", message["content"])
 
-    # Exibe a imagem
-    if os.path.isfile(image_path):
-        image = Image.open(image_path)
-        st.image(image, caption=f"{selected_year} - {model}")
-    else:
-        st.write("Imagem não encontrada.")
+     # Obtém a entrada do usuário
+    user_input = st.text_input("Digite sua pergunta:")
+    if user_input:
+        # Verifica se a pergunta é sobre um ano específico
+        if user_input.lower().startswith("em que ano") or user_input.lower().startswith("qual era o carro"):
+            try:
+                year = int(user_input.split()[-1])  # Extrai o ano da pergunta
+                response = get_senna_info(str(year))
+            except ValueError:
+                response = "Por favor, especifique o ano em sua pergunta."
+        else:
+            conversation, response = generate_response(conversation, user_input)
 
-    # Exibe as informações do carro
-    st.write(f"**Descrição:** {description}")
-    st.write(f"**Títulos nesse ano:** {titles}")
-    st.write(f"**Vitórias nesse ano:** {wins}")
-
-
+        # Exibe a resposta do chatbot, incluindo a imagem se disponível
+        st.write("Chatbot:", response)
 
 if __name__ == "__main__":
     main()
